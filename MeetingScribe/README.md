@@ -14,7 +14,7 @@ All AI runs on **NVIDIA's free hosted models** (build.nvidia.com):
 
 ## Get the APK without Android Studio
 
-Push this folder to a GitHub repo. The workflow in `.github/workflows/build-apk.yml`
+Push this folder to a GitHub repo. The workflow in `.github/workflows/build-apk.yml` (repo root)
 builds a debug APK; download it from the run's Artifacts, copy it to the phone and install it.
 
 ## Run it
