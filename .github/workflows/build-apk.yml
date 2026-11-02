@@ -4,7 +4,11 @@ name: Build Meeting Scribe APK
 # (Actions tab). Download it, copy it to the phone and install it.
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -32,6 +36,16 @@ jobs:
         with:
           name: MeetingScribe-debug-apk
           path: MeetingScribe/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK as a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk MeetingScribe-debug.apk
+          gh release create "apk-build-${{ github.run_number }}" MeetingScribe-debug.apk \
+            --repo "${{ github.repository }}" \
+            --title "Meeting Scribe debug APK (build ${{ github.run_number }})" \
+            --notes "Debug build of commit ${{ github.sha }}. Download MeetingScribe-debug.apk on the phone and install it (allow installs from this source when asked)." \
+            --latest
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4

@@ -15,7 +15,7 @@ All AI runs on **NVIDIA's free hosted models** (build.nvidia.com):
 ## Get the APK without Android Studio
 
 Push this folder to a GitHub repo. The workflow in `.github/workflows/build-apk.yml` (repo root)
-builds a debug APK; download it from the run's Artifacts, copy it to the phone and install it.
+builds a debug APK and publishes it under the repo's Releases. Open the latest release on your phone, download MeetingScribe-debug.apk and install it.
 
 ## Run it
 
