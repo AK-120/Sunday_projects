@@ -35,23 +35,40 @@ class SarvamAsr(private val apiKey: String) : SpeechToText {
     override suspend fun transcribe(pcm: ByteArray, languageCode: String): String =
         withContext(Dispatchers.IO) {
             val tag = SARVAM_TAGS[languageCode] ?: error("Sarvam does not support this language.")
-            val body = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("file", "chunk.wav", wavOf(pcm).toRequestBody("audio/wav".toMediaType()))
-                .addFormDataPart("language_code", tag)
-                .build()
-            val request = Request.Builder()
-                .url("https://api.sarvam.ai/speech-to-text")
-                .header("api-subscription-key", apiKey)
-                .post(body)
-                .build()
+            val wav = wavOf(pcm)
 
+            // Indian-language meetings usually mix in English words. "codemix" keeps English
+            // words in English and writes the rest in the native script. Plain English
+            // meetings use the default model.
+            fun buildRequest(codemix: Boolean): Request {
+                val body = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("file", "chunk.wav", wav.toRequestBody("audio/wav".toMediaType()))
+                    .addFormDataPart("language_code", tag)
+                if (codemix) {
+                    body.addFormDataPart("model", "saaras:v3")
+                    body.addFormDataPart("mode", "codemix")
+                }
+                return Request.Builder()
+                    .url("https://api.sarvam.ai/speech-to-text")
+                    .header("api-subscription-key", apiKey)
+                    .post(body.build())
+                    .build()
+            }
+
+            var useCodemix = languageCode != "en"
             var lastCode = 0
             for (attempt in 1..3) {
-                val (code, text) = http.newCall(request).execute().use { it.code to it.body?.string().orEmpty() }
+                val (code, text) = http.newCall(buildRequest(useCodemix)).execute()
+                    .use { it.code to it.body?.string().orEmpty() }
                 lastCode = code
                 if (code in 200..299) {
                     return@withContext JSONObject(text).optString("transcript").trim()
+                }
+                if ((code == 400 || code == 422) && useCodemix) {
+                    // The mixed-language mode was refused: retry once with the default model.
+                    useCodemix = false
+                    continue
                 }
                 if (code == 403 || code == 401) {
                     error("Sarvam rejected the API key. Check it in Settings.")

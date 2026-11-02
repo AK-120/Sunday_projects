@@ -136,7 +136,10 @@ fun HomeScreen(onOpenMeeting: (Long) -> Unit, onOpenSettings: () -> Unit) {
             }
             val speechEngine = speechEngineFor(settings, language.code)
             Text(
-                "Speech by ${speechEngine.label}",
+                "Speech by ${speechEngine.label}" +
+                    if (speechEngine == SpeechEngine.SARVAM && language.code != "en") {
+                        ", handles ${language.label} mixed with English"
+                    } else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -25,8 +25,11 @@ class NvidiaChat(private val apiKey: String, private val model: String) {
     suspend fun translateToEnglish(text: String, languageName: String): String =
         complete(
             system = "You are a professional translator. Translate the user's text from " +
-                "$languageName to English. The speaker may mix English words into " +
-                "$languageName: keep those as they are. The text comes from automatic speech " +
+                "$languageName to English. The speaker mixes English and $languageName in the " +
+                "same sentence, which is normal in India. Words already in English stay exactly " +
+                "as they are, including names, numbers, and technical or business terms; " +
+                "translate only the $languageName parts, so the result reads as one natural " +
+                "English sentence. The text comes from automatic speech " +
                 "recognition and can contain spelling mistakes; use context to fix them. " +
                 "Output only the English translation. Do not add notes or explanations. " +
                 "If the text is meaningless, output [unclear].",
