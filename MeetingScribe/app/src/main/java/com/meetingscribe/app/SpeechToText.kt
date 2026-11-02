@@ -8,6 +8,7 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -23,8 +24,15 @@ interface SpeechToText {
  * Sarvam AI speech-to-text (https://docs.sarvam.ai), built for Indian languages and
  * Indian-accented English. Uses the REST endpoint, which takes up to about 30 seconds
  * of audio per request, so the recorder never makes chunks longer than 28 seconds.
+ *
+ * [vocabulary] is the person's list of names and terms. For English it is sent as
+ * Sarvam "keyterms" so rare names are spelled right. Mixed-language (codemix) mode is a
+ * different model that does not take keyterms; there the text step fixes names instead.
  */
-class SarvamAsr(private val apiKey: String) : SpeechToText {
+class SarvamAsr(
+    private val apiKey: String,
+    private val vocabulary: List<String> = emptyList(),
+) : SpeechToText {
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -36,18 +44,22 @@ class SarvamAsr(private val apiKey: String) : SpeechToText {
         withContext(Dispatchers.IO) {
             val tag = SARVAM_TAGS[languageCode] ?: error("Sarvam does not support this language.")
             val wav = wavOf(pcm)
+            val mixed = languageCode != "en"
 
             // Indian-language meetings usually mix in English words. "codemix" keeps English
-            // words in English and writes the rest in the native script. Plain English
-            // meetings use the default model.
-            fun buildRequest(codemix: Boolean): Request {
+            // words in English and writes the rest in the native script.
+            fun buildRequest(plain: Boolean): Request {
                 val body = MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("file", "chunk.wav", wav.toRequestBody("audio/wav".toMediaType()))
                     .addFormDataPart("language_code", tag)
-                if (codemix) {
-                    body.addFormDataPart("model", "saaras:v3")
-                    body.addFormDataPart("mode", "codemix")
+                if (!plain) {
+                    if (mixed) {
+                        body.addFormDataPart("model", "saaras:v3")
+                        body.addFormDataPart("mode", "codemix")
+                    } else if (vocabulary.isNotEmpty()) {
+                        body.addFormDataPart("keyterms", JSONArray(vocabulary).toString())
+                    }
                 }
                 return Request.Builder()
                     .url("https://api.sarvam.ai/speech-to-text")
@@ -56,18 +68,18 @@ class SarvamAsr(private val apiKey: String) : SpeechToText {
                     .build()
             }
 
-            var useCodemix = languageCode != "en"
+            // If the extra options are refused, retry once with a plain request.
+            var plain = false
             var lastCode = 0
             for (attempt in 1..3) {
-                val (code, text) = http.newCall(buildRequest(useCodemix)).execute()
+                val (code, text) = http.newCall(buildRequest(plain)).execute()
                     .use { it.code to it.body?.string().orEmpty() }
                 lastCode = code
                 if (code in 200..299) {
                     return@withContext JSONObject(text).optString("transcript").trim()
                 }
-                if ((code == 400 || code == 422) && useCodemix) {
-                    // The mixed-language mode was refused: retry once with the default model.
-                    useCodemix = false
+                if ((code == 400 || code == 422) && !plain) {
+                    plain = true
                     continue
                 }
                 if (code == 403 || code == 401) {

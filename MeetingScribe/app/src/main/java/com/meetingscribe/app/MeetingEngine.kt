@@ -69,6 +69,7 @@ object MeetingEngine {
             val language = languageOf(settings.language)
             val english = language.code == "en"
             val engine = speechEngineFor(settings, language.code)
+            val vocabulary = settings.vocabularyList()
             _state.value = EngineState(
                 phase = Phase.RECORDING,
                 status = "Listening",
@@ -77,7 +78,7 @@ object MeetingEngine {
             )
 
             val asr: SpeechToText = when (engine) {
-                SpeechEngine.SARVAM -> SarvamAsr(settings.sarvamKey)
+                SpeechEngine.SARVAM -> SarvamAsr(settings.sarvamKey, vocabulary)
                 SpeechEngine.NVIDIA -> NvidiaAsr(settings.apiKey)
             }
             val chat = NvidiaChat(settings.apiKey, settings.chatModel)
@@ -96,10 +97,16 @@ object MeetingEngine {
                         if (heard.isBlank()) continue
 
                         val segment = if (english) {
-                            Segment(original = heard, english = heard)
+                            // Fix misheard names only when there is a word list to check against.
+                            val fixed = if (vocabulary.isEmpty()) heard else try {
+                                chat.correctEnglish(heard, vocabulary).ifBlank { heard }
+                            } catch (e: Exception) {
+                                heard
+                            }
+                            Segment(original = heard, english = fixed)
                         } else {
                             val translated = try {
-                                chat.translateToEnglish(heard, language.label)
+                                chat.translateToEnglish(heard, language.label, vocabulary)
                             } catch (e: Exception) {
                                 _state.update { it.copy(error = "Translation problem: ${e.message}") }
                                 ""
@@ -144,7 +151,7 @@ object MeetingEngine {
             _state.update { it.copy(status = "Writing the notes") }
             val draft = Meeting(meetingId, language.code, duration, "", segments)
             val summary = try {
-                chat.summarize(draft.englishTranscript)
+                chat.summarize(draft.englishTranscript, vocabulary)
             } catch (e: Exception) {
                 _state.update { it.copy(error = "Summary problem: ${e.message}") }
                 ""

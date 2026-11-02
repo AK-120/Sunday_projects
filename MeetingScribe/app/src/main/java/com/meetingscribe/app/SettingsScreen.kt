@@ -46,6 +46,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var sarvamKey by remember { mutableStateOf("") }
     var useNvidia by remember { mutableStateOf(false) }
     var recipient by remember { mutableStateOf("") }
+    var vocabulary by remember { mutableStateOf(AppSettings.DEFAULT_VOCABULARY) }
     var model by remember { mutableStateOf(AppSettings.DEFAULT_CHAT_MODEL) }
     var filled by remember { mutableStateOf(false) }
 
@@ -57,6 +58,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             sarvamKey = s.sarvamKey
             useNvidia = s.useNvidiaSpeech
             recipient = s.recipient
+            vocabulary = s.vocabulary
             model = s.chatModel
             filled = true
         }
@@ -128,6 +130,17 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             OutlinedTextField(
+                value = vocabulary,
+                onValueChange = { vocabulary = it },
+                label = { Text("Names and words to spell correctly") },
+                supportingText = {
+                    Text("Separate with commas. Add your name, your team, product and brand names.")
+                },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            OutlinedTextField(
                 value = model,
                 onValueChange = { model = it },
                 label = { Text("Text model for translation and notes") },
@@ -160,6 +173,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 sarvamKey = sarvamKey,
                                 useNvidiaSpeech = useNvidia,
                                 recipient = recipient,
+                                vocabulary = vocabulary,
                                 chatModel = model,
                             ),
                         )

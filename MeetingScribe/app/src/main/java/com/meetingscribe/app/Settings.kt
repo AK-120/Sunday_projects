@@ -64,9 +64,16 @@ data class AppSettings(
     val recipient: String = "",
     val language: String = "en",
     val chatModel: String = DEFAULT_CHAT_MODEL,
+    /** Names and terms to spell correctly, separated by commas or new lines. */
+    val vocabulary: String = DEFAULT_VOCABULARY,
 ) {
+    /** The vocabulary as a clean list (Sarvam accepts at most 50 terms of 64 characters). */
+    fun vocabularyList(): List<String> =
+        vocabulary.split(',', '\n').map { it.trim().take(64) }.filter { it.isNotEmpty() }.distinct().take(50)
+
     companion object {
         const val DEFAULT_CHAT_MODEL = "meta/llama-3.3-70b-instruct"
+        const val DEFAULT_VOCABULARY = "Athul, Claude"
     }
 }
 
@@ -85,6 +92,7 @@ object SettingsStore {
     private val KEY_TO = stringPreferencesKey("recipient")
     private val KEY_LANG = stringPreferencesKey("language")
     private val KEY_MODEL = stringPreferencesKey("chat_model")
+    private val KEY_VOCAB = stringPreferencesKey("vocabulary")
 
     fun flow(ctx: Context): Flow<AppSettings> = ctx.applicationContext.dataStore.data.map { p ->
         AppSettings(
@@ -94,6 +102,7 @@ object SettingsStore {
             recipient = p[KEY_TO].orEmpty(),
             language = p[KEY_LANG] ?: "en",
             chatModel = p[KEY_MODEL] ?: AppSettings.DEFAULT_CHAT_MODEL,
+            vocabulary = p[KEY_VOCAB] ?: AppSettings.DEFAULT_VOCABULARY,
         )
     }
 
@@ -107,6 +116,7 @@ object SettingsStore {
             p[KEY_TO] = s.recipient.trim()
             p[KEY_LANG] = s.language
             p[KEY_MODEL] = s.chatModel.trim().ifBlank { AppSettings.DEFAULT_CHAT_MODEL }
+            p[KEY_VOCAB] = s.vocabulary.trim()
         }
     }
 }

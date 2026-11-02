@@ -111,7 +111,7 @@ class PcmRecorder(
     companion object {
         const val SAMPLE_RATE = 16_000
         private const val READ_BYTES = 1280 // 40 ms
-        private const val MIN_CHUNK_SECONDS = 12
+        private const val MIN_CHUNK_SECONDS = 7 // shorter chunks show the English text sooner
         private const val MAX_CHUNK_SECONDS = 28 // Sarvam's REST endpoint allows about 30 s
         private const val QUIET_READS_FOR_CUT = 10 // 0.4 s
         private const val MIN_SPEECH_READS = 8 // about 0.3 s of actual speech
