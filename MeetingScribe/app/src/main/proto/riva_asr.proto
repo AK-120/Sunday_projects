@@ -1,0 +1,58 @@
+// Minimal subset of NVIDIA Riva's riva_asr.proto, enough for the offline
+// Recognize call used with the hosted Whisper Large v3 on build.nvidia.com.
+//
+// IMPORTANT: field numbers below are written from memory of the public
+// nvidia-riva/common repo. If transcription returns an INVALID_ARGUMENT or an
+// empty result, diff this file against
+//   https://github.com/nvidia-riva/common/blob/main/riva/proto/riva_asr.proto
+// The gRPC method path (nvidia.riva.asr.RivaSpeechRecognition/Recognize) is what
+// the server routes on, so the package and service names must stay as they are.
+syntax = "proto3";
+
+package nvidia.riva.asr;
+
+option java_package = "com.meetingscribe.riva";
+option java_multiple_files = true;
+
+enum AudioEncoding {
+  ENCODING_UNSPECIFIED = 0;
+  LINEAR_PCM = 1;
+  FLAC = 2;
+  MULAW = 3;
+  OGGOPUS = 4;
+  ALAW = 20;
+}
+
+message RecognitionConfig {
+  AudioEncoding encoding = 1;
+  int32 sample_rate_hertz = 2;
+  string language_code = 3;
+  int32 max_alternatives = 4;
+  int32 audio_channel_count = 7;
+  string model = 13;
+  map<string, string> custom_configuration = 24;
+}
+
+message RecognizeRequest {
+  RecognitionConfig config = 1;
+  bytes audio = 2;
+}
+
+message SpeechRecognitionAlternative {
+  string transcript = 1;
+  float confidence = 2;
+}
+
+message SpeechRecognitionResult {
+  repeated SpeechRecognitionAlternative alternatives = 1;
+  int32 channel_tag = 2;
+  float audio_processed = 3;
+}
+
+message RecognizeResponse {
+  repeated SpeechRecognitionResult results = 1;
+}
+
+service RivaSpeechRecognition {
+  rpc Recognize(RecognizeRequest) returns (RecognizeResponse) {}
+}
